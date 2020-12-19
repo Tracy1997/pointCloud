@@ -28,8 +28,8 @@ pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
 # Flip it, otherwise the pointcloud will be upside down
 pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 print(pcd)
-#o3d.visualization.draw_geometries([pcd])
-downpcd = pcd.voxel_down_sample(voxel_size=0.00001)
+o3d.visualization.draw_geometries([pcd])
+#downpcd = pcd.voxel_down_sample(voxel_size=0.00001)
 #o3d.visualization.draw_geometries([downpcd])
 
 points = [	[-0.0003,-0.0005,-0.001],
@@ -46,7 +46,7 @@ line_set = o3d.geometry.LineSet()
 line_set.points = o3d.utility.Vector3dVector(points)
 line_set.lines = o3d.utility.Vector2iVector(lines)
 line_set.colors = o3d.utility.Vector3dVector(colors)
-o3d.visualization.draw_geometries([pcd,line_set])
+#o3d.visualization.draw_geometries([pcd,line_set])
 
 vol = o3d.visualization.read_selection_polygon_volume("cropped_carrot.json")
 chair = vol.crop_point_cloud(pcd)
