@@ -10,8 +10,6 @@ def findpcd(rgb_img,depth_img,orientation,position):
 
 	r = R.from_quat(orientation)
 	rotationMatrix = r.as_matrix()
-	rotationMatrix = np.append(rotationMatrix,[[position[0]],[position[1]],[position[2]]],axis=1)
-	rotationMatrix = np.append(rotationMatrix,[[0,0,0,1]],axis=0)
 	rotationMatrix = np.linalg.inv(rotationMatrix)
 	# convert to hsv. otsu threshold in s to remove plate
 	hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
@@ -51,16 +49,27 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	kernel2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(13,13))
 	mask_fruit2 = cv2.dilate(mask_fruit,kernel2,iterations = 1)
 	res = cv2.bitwise_and(fruit_bin,fruit_bin,mask = mask_fruit2)
-	depth_img = cv2.bitwise_and(depth_img,depth_img,mask = mask_fruit2)
+	rgb_img_filtered = cv2.bitwise_and(rgb_img,rgb_img,mask = mask_fruit2)
+	depth_img_filtered = cv2.bitwise_and(depth_img,depth_img,mask = mask_fruit2)
 	#invert = cv2.bitwise_not(fruit_final) # OR
-	#cv2.imshow('invert',invert)
+	#cv2.imshow('mask_fruit2',mask_fruit2)
+	#cv2.waitKey(0)
+
+	#cv2.imshow('depth_img_filtered',depth_img_filtered)
 	#cv2.waitKey(0)
 
 	filename = 'carrot_filtered.png'
 	cv2.imwrite(filename, res)
 
 	cv2.imwrite('color_carrot.jpg', rgb_img)
+	cv2.imwrite('color_carrot_filtered.jpg', rgb_img_filtered)
 	cv2.imwrite('depth_carrot.png', depth_img)
+	cv2.imwrite('depth_carrot_filtered.png', depth_img_filtered)
+	
+	print(rgb_img.shape)
+	print(rgb_img_filtered.shape)
+	print(depth_img.shape)
+	print(depth_img_filtered.shape)
 	#cv2.imshow('Color image', data["rgb_images"][0])
 	#cv2.waitKey(0)
 	#cv2.imshow('Depth image', data["depth_images"][0])
@@ -71,25 +80,44 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	#depth_img.save('depth_carrot.png')
 
 	color_raw = o3d.io.read_image("color_carrot.jpg")
+	color_raw_filtered = o3d.io.read_image("color_carrot_filtered.jpg")
 	depth_raw = o3d.io.read_image("depth_carrot.png")
+	depth_raw_filtered = o3d.io.read_image("depth_carrot_filtered.png")
 	rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_raw, depth_raw)
+	rgbd_image_filtered = o3d.geometry.RGBDImage.create_from_color_and_depth(color_raw_filtered, depth_raw_filtered)
+	plt.subplot(2, 2, 1)
+	plt.title('Carrot grayscale image')
+	plt.imshow(rgbd_image.color)
+	plt.subplot(2, 2, 2)
+	plt.title('Carrot depth image')
+	plt.imshow(rgbd_image.depth)
+	plt.subplot(2, 2, 3)
+	plt.title('Carrot grayscale image')
+	plt.imshow(rgbd_image_filtered.color)
+	plt.subplot(2, 2, 4)
+	plt.title('Carrot depth image')
+	plt.imshow(rgbd_image_filtered.depth)
+	plt.show()
 
-	# plt.subplot(1, 2, 1)
-	# plt.title('Carrot grayscale image')
-	# plt.imshow(rgbd_image.color)
-	# plt.subplot(1, 2, 2)
-	# plt.title('Carrot depth image')
-	# plt.imshow(rgbd_image.depth)
-	# plt.show()
-
-	pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
-	    o3d.camera.PinholeCameraIntrinsic(o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault))
+	pinhole_camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic("camera_primesense.json")
+	print(pinhole_camera_intrinsic)
+	pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, pinhole_camera_intrinsic)
+	pcd_filtered = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image_filtered, pinhole_camera_intrinsic)
 	# Flip it, otherwise the pointcloud will be upside down
-	#pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-	pcd.transform(rotationMatrix)
-	print(rotationMatrix)
+	pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+	pcd_filtered.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+	#pcd.transform(rotationMatrix)
+	#pcd.rotate(rotationMatrix,center=np.array([[0],[0],[0]]))
+	#pcd_filtered.rotate(rotationMatrix)
+	#print(pcd.get_center())
+	#print(rotationMatrix)
 	print(pcd)
-	#o3d.visualization.draw_geometries([pcd])
+	print(pcd_filtered)
+	np_colors = np.array(pcd_filtered.colors)
+	np_colors[:,1] = 0.2
+	pcd_filtered.colors = o3d.utility.Vector3dVector(np_colors)
+
+	o3d.visualization.draw_geometries([pcd,pcd_filtered])
 
 	points = [	[0.25,-0.1,-0.4],
 				[0.4,-0.1,-0.4],
@@ -106,7 +134,7 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	line_set.lines = o3d.utility.Vector2iVector(lines)
 	line_set.colors = o3d.utility.Vector3dVector(colors)
 	#o3d.visualization.draw_geometries([pcd,line_set])
-	return pcd
+	return pcd_filtered
 
 
 data = np.load('carrot_rs_data_1.npz')
