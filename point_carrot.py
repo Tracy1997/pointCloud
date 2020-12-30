@@ -14,7 +14,7 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	# convert to hsv. otsu threshold in s to remove plate
 	hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
 	h,s,v = cv2.split(hsv_img)
-	background = cv2.inRange(hsv_img, np.array([0,0,0]), np.array([200,190,255]))
+	background = cv2.inRange(hsv_img, np.array([0,0,0]), np.array([200,200,255]))
 	not_background = cv2.bitwise_not(background)
 	fruit = cv2.bitwise_and(rgb_img,rgb_img,mask = not_background)
 
@@ -48,9 +48,12 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	# #dilate now
 	kernel2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(13,13))
 	mask_fruit2 = cv2.dilate(mask_fruit,kernel2,iterations = 1)
-	res = cv2.bitwise_and(fruit_bin,fruit_bin,mask = mask_fruit2)
-	rgb_img_filtered = cv2.bitwise_and(rgb_img,rgb_img,mask = mask_fruit2)
-	depth_img_filtered = cv2.bitwise_and(depth_img,depth_img,mask = mask_fruit2)
+	res = cv2.bitwise_and(fruit_bin,fruit_bin,mask = mask_fruit)
+	rgb_img_filtered = cv2.bitwise_and(rgb_img,rgb_img,mask = mask_fruit)
+	depth_img_filtered = cv2.bitwise_and(depth_img,depth_img,mask = mask_fruit)
+	carrot_depth = cv2.inRange(depth_img_filtered, 0, 400)
+	depth_img_filtered = cv2.bitwise_and(depth_img_filtered,depth_img_filtered,mask = carrot_depth)
+
 	#invert = cv2.bitwise_not(fruit_final) # OR
 	#cv2.imshow('mask_fruit2',mask_fruit2)
 	#cv2.waitKey(0)
@@ -85,40 +88,41 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	depth_raw_filtered = o3d.io.read_image("depth_carrot_filtered.png")
 	rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_raw, depth_raw)
 	rgbd_image_filtered = o3d.geometry.RGBDImage.create_from_color_and_depth(color_raw_filtered, depth_raw_filtered)
-	plt.subplot(2, 2, 1)
-	plt.title('Carrot grayscale image')
-	plt.imshow(rgbd_image.color)
-	plt.subplot(2, 2, 2)
-	plt.title('Carrot depth image')
-	plt.imshow(rgbd_image.depth)
-	plt.subplot(2, 2, 3)
-	plt.title('Carrot grayscale image')
-	plt.imshow(rgbd_image_filtered.color)
-	plt.subplot(2, 2, 4)
-	plt.title('Carrot depth image')
-	plt.imshow(rgbd_image_filtered.depth)
-	plt.show()
+	# plt.subplot(2, 2, 1)
+	# plt.title('Carrot grayscale image')
+	# plt.imshow(rgbd_image.color)
+	# plt.subplot(2, 2, 2)
+	# plt.title('Carrot depth image')
+	# plt.imshow(rgbd_image.depth)
+	# plt.subplot(2, 2, 3)
+	# plt.title('Carrot grayscale image')
+	# plt.imshow(rgbd_image_filtered.color)
+	# plt.subplot(2, 2, 4)
+	# plt.title('Carrot depth image')
+	# plt.imshow(rgbd_image_filtered.depth)
+	# plt.show()
 
 	pinhole_camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic("camera_primesense.json")
 	print(pinhole_camera_intrinsic)
 	pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, pinhole_camera_intrinsic)
 	pcd_filtered = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image_filtered, pinhole_camera_intrinsic)
 	# Flip it, otherwise the pointcloud will be upside down
-	pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-	pcd_filtered.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+	#pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+	#pcd_filtered.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 	#pcd.transform(rotationMatrix)
-	#pcd.rotate(rotationMatrix,center=np.array([[0],[0],[0]]))
+	
 	#pcd_filtered.rotate(rotationMatrix)
 	#print(pcd.get_center())
 	#print(rotationMatrix)
 	print(pcd)
 	print(pcd_filtered)
-	np_colors = np.array(pcd_filtered.colors)
-	np_colors[:,1] = 0.2
-	pcd_filtered.colors = o3d.utility.Vector3dVector(np_colors)
+	# np_colors = np.array(pcd_filtered.colors)
+	# np_colors[:,1] = 0.2
+	# pcd_filtered.colors = o3d.utility.Vector3dVector(np_colors)
 
-	o3d.visualization.draw_geometries([pcd,pcd_filtered])
-
+	#o3d.visualization.draw_geometries([pcd,pcd_filtered])
+	pcd_filtered.rotate(rotationMatrix)
+	#pcd_filtered.rotate(rotationMatrix,center=np.array([[0],[0],[0]]))
 	points = [	[0.25,-0.1,-0.4],
 				[0.4,-0.1,-0.4],
 				[0.25,0,-0.4],
@@ -136,10 +140,19 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	#o3d.visualization.draw_geometries([pcd,line_set])
 	return pcd_filtered
 
-
-data = np.load('carrot_rs_data_1.npz')
+np.set_printoptions(threshold=np.inf)
+data = np.load('carrot_rsalign_data.npz')
 for k in data.files:
 	print(k)
+
+print(data["intrinsic_fx"])
+print(data["intrinsic_fy"])
+print(data["intrinsic_ppx"])
+print(data["intrinsic_ppy"])
+print(data["intrinsic_model"])
+print(data["intrinsic_coeffs"])
+print(data["intrinsic_width"])
+print(data["intrinsic_height"])
 
 pcds = []
 pcd0 = findpcd(data["rgb_images"][0],data["depth_images"][0],data["ee_orientation"][0], data["ee_position"][0])
