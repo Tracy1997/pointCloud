@@ -8,9 +8,11 @@ from scipy.spatial.transform import Rotation as R
 
 def findpcd(rgb_img,depth_img,orientation,position):
 
-	r = R.from_quat(orientation)
-	rotationMatrix = r.as_matrix()
-	rotationMatrix = np.linalg.inv(rotationMatrix)
+	#r = R.from_quat(orientation)
+	#rotationMatrix = r.as_matrix()
+	#rotationMatrix = np.append(rotationMatrix,[[position[0]],[position[1]],[position[2]]],axis=1)
+	#rotationMatrix = np.append(rotationMatrix,[[0,0,0,1]],axis=0)
+	#rotationMatrix = np.linalg.inv(rotationMatrix)
 	# convert to hsv. otsu threshold in s to remove plate
 	hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
 	h,s,v = cv2.split(hsv_img)
@@ -103,17 +105,18 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	# plt.show()
 
 	pinhole_camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic("camera_primesense.json")
-	print(pinhole_camera_intrinsic)
 	pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, pinhole_camera_intrinsic)
 	pcd_filtered = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image_filtered, pinhole_camera_intrinsic)
 	# Flip it, otherwise the pointcloud will be upside down
 	#pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 	#pcd_filtered.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-	#pcd.transform(rotationMatrix)
-	
+	#pcd_filtered.transform(rotationMatrix)
+	#pcd_filtered.transform([[1, 0, 0, position[0]], [0, 1, 0, position[1]], [0, 0, 1, position[2]], [0, 0, 0, 1]])
+	#pcd_filtered.translate([[position[0]],[position[1]],[position[2]]])
 	#pcd_filtered.rotate(rotationMatrix)
-	#print(pcd.get_center())
 	#print(rotationMatrix)
+	#rotation_center = pcd.get_center()
+	#print(pcd.get_center())
 	print(pcd)
 	print(pcd_filtered)
 	# np_colors = np.array(pcd_filtered.colors)
@@ -121,23 +124,6 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	# pcd_filtered.colors = o3d.utility.Vector3dVector(np_colors)
 
 	#o3d.visualization.draw_geometries([pcd,pcd_filtered])
-	pcd_filtered.rotate(rotationMatrix)
-	#pcd_filtered.rotate(rotationMatrix,center=np.array([[0],[0],[0]]))
-	points = [	[0.25,-0.1,-0.4],
-				[0.4,-0.1,-0.4],
-				[0.25,0,-0.4],
-				[0.4,0,-0.4],
-				[0.25,-0.1,-0.35],
-				[0.4,-0.1,-0.35],
-				[0.25,0,-0.35],
-				[0.4,0,-0.35]]
-	lines = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]]
-	colors = [[1, 0, 0] for i in range(len(lines))]
-	line_set = o3d.geometry.LineSet()
-	line_set.points = o3d.utility.Vector3dVector(points)
-	line_set.lines = o3d.utility.Vector2iVector(lines)
-	line_set.colors = o3d.utility.Vector3dVector(colors)
-	#o3d.visualization.draw_geometries([pcd,line_set])
 	return pcd_filtered
 
 np.set_printoptions(threshold=np.inf)
@@ -159,6 +145,38 @@ pcd0 = findpcd(data["rgb_images"][0],data["depth_images"][0],data["ee_orientatio
 pcd1 = findpcd(data["rgb_images"][1],data["depth_images"][1],data["ee_orientation"][1], data["ee_position"][1])
 pcd2 = findpcd(data["rgb_images"][2],data["depth_images"][2],data["ee_orientation"][2], data["ee_position"][2])
 pcd3 = findpcd(data["rgb_images"][3],data["depth_images"][3],data["ee_orientation"][3], data["ee_position"][3])
+
+#pcd0.translate([[0.018],[0],[0.013]])
+#pcd1.translate([[0],[-0.03],[0]])
+#pcd2.translate([[-0.018],[0],[-0.013]])
+#pcd3.translate([[0],[0.03],[0]])
+r0 = R.from_quat(data["ee_orientation"][0])
+rot0 = r0.as_matrix()
+
+r1 = R.from_quat(data["ee_orientation"][1])
+rot1 = r1.as_matrix()
+
+r2 = R.from_quat(data["ee_orientation"][2])
+rot2 = r2.as_matrix()
+
+r3 = R.from_quat(data["ee_orientation"][3])
+rot3 = r3.as_matrix()
+
+#rotation_center = pcd0.get_center()
+#rotation_center = [0.01123586, -0.01650917,  0.17909846]
+pcd1.rotate(np.linalg.inv(rot0)@rot1)
+pcd2.rotate(np.linalg.inv(rot0)@rot2)
+pcd3.rotate(np.linalg.inv(rot0)@rot3)
+
+#pcd0.translate([[0.018],[0],[0.013]])
+pcd1.translate([[0],[-0.03],[0]])
+pcd2.translate([[-0.03],[0],[-0.03]])
+pcd3.translate([[-0.01],[0.03],[-0.02]])
+
+pcd0.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+pcd1.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+pcd2.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+pcd3.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 
 np_colors = np.array(pcd0.colors)
 np_colors[:,1] = 0.2
@@ -186,30 +204,9 @@ pcd_combined = o3d.geometry.PointCloud()
 for point_id in range(len(pcds)):
     pcd_combined += pcds[point_id]
 
-# points = [	[0.25,-0.1,-0.4],
-# 			[0.4,-0.1,-0.4],
-# 			[0.25,0,-0.4],
-# 			[0.4,0,-0.4],
-# 			[0.25,-0.1,-0.35],
-# 			[0.4,-0.1,-0.35],
-# 			[0.25,0,-0.35],
-# 			[0.4,0,-0.35]]
-# lines = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]]
-# colors = [[1, 0, 0] for i in range(len(lines))]
-# line_set = o3d.geometry.LineSet()
-# line_set.points = o3d.utility.Vector3dVector(points)
-# line_set.lines = o3d.utility.Vector2iVector(lines)
-# line_set.colors = o3d.utility.Vector3dVector(colors)
-# o3d.visualization.draw_geometries([pcd,line_set])
-
-# vol = o3d.visualization.read_selection_polygon_volume("cropped_carrot.json")
-# carrot = vol.crop_point_cloud(pcd)
-# print(carrot)
-#o3d.visualization.draw_geometries([carrot])
-
 aligned_bounding_box = pcd_combined.get_axis_aligned_bounding_box()
 aligned_bounding_box.color = (1,0,0)
 oriented_bounding_box = pcd_combined.get_oriented_bounding_box()
 oriented_bounding_box.color = (0,1,0)
-#o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
+o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
 
