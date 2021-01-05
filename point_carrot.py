@@ -198,15 +198,39 @@ pcds.append(pcd0)
 pcds.append(pcd1)
 pcds.append(pcd2)
 pcds.append(pcd3)
-o3d.visualization.draw_geometries(pcds)
+#o3d.visualization.draw_geometries(pcds)
 
 pcd_combined = o3d.geometry.PointCloud()
 for point_id in range(len(pcds)):
     pcd_combined += pcds[point_id]
 
-aligned_bounding_box = pcd_combined.get_axis_aligned_bounding_box()
+aligned_bounding_box = pcd3.get_axis_aligned_bounding_box()
 aligned_bounding_box.color = (1,0,0)
-oriented_bounding_box = pcd_combined.get_oriented_bounding_box()
+oriented_bounding_box = pcd3.get_oriented_bounding_box()
 oriented_bounding_box.color = (0,1,0)
-o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
+
+points = np.asarray(oriented_bounding_box.get_box_points())
+y = points[2][1]-points[7][1]
+z = points[2][2]-points[7][2]
+r1 = R.from_euler('x', 90+np.arctan2(y,z)*180/np.pi, degrees=True)
+oriented_bounding_box.rotate(r1.as_matrix())
+
+points = np.asarray(oriented_bounding_box.get_box_points())
+x = points[0][0]-points[2][0]
+z = points[0][2]-points[2][2]
+r2 = R.from_euler('y', 90-np.arctan2(x,z)*180/np.pi, degrees=True)
+oriented_bounding_box.rotate(r2.as_matrix())
+
+points = np.asarray(oriented_bounding_box.get_box_points())
+x = points[0][0]-points[3][0]
+y = points[0][1]-points[3][1]
+r3 = R.from_euler('z', -90-np.arctan2(y,x)*180/np.pi, degrees=True)
+oriented_bounding_box.rotate(r3.as_matrix())
+r = r3*r2*r1
+pcd3.rotate(r.as_matrix(),oriented_bounding_box.get_center())
+
+points = np.asarray(oriented_bounding_box.get_box_points())
+print(points)
+
+o3d.visualization.draw_geometries([pcd3, aligned_bounding_box, oriented_bounding_box])
 
