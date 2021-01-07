@@ -214,31 +214,31 @@ o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_
 points = np.asarray(oriented_bounding_box.get_box_points())
 y = points[2][1]-points[7][1]
 z = points[2][2]-points[7][2]
-r1 = R.from_euler('x', np.arctan2(z,-y)*180/np.pi, degrees=True)
+r1 = R.from_euler('x', np.arctan2(-z,y)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r1.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 x = points[0][0]-points[2][0]
 z = points[0][2]-points[2][2]
-r2 = R.from_euler('y', np.arctan2(z,x)*180/np.pi, degrees=True)
+r2 = R.from_euler('y', np.arctan2(x,-z)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r2.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 x = points[0][0]-points[3][0]
 y = points[0][1]-points[3][1]
-r3 = R.from_euler('z', np.arctan2(-x,-y)*180/np.pi, degrees=True)
+r3 = R.from_euler('z', np.arctan2(-y,x)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r3.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 y = points[2][1]-points[7][1]
 z = points[2][2]-points[7][2]
-r4 = R.from_euler('x', np.arctan2(z,-y)*180/np.pi, degrees=True)
+r4 = R.from_euler('x', np.arctan2(-z,y)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r4.as_matrix())
 
 r = r4*r3*r2*r1
 
 pcd_combined.rotate(r.as_matrix(),oriented_bounding_box.get_center())
-#pcd_combined.rotate(rfork.as_matrix()@r.as_matrix(),oriented_bounding_box.get_center())
+#pcd_combined.rotate(np.linalg.inv(rot0)@r.as_matrix(),oriented_bounding_box.get_center())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 print(points)
