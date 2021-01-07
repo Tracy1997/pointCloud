@@ -71,10 +71,10 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	cv2.imwrite('depth_carrot.png', depth_img)
 	cv2.imwrite('depth_carrot_filtered.png', depth_img_filtered)
 	
-	print(rgb_img.shape)
-	print(rgb_img_filtered.shape)
-	print(depth_img.shape)
-	print(depth_img_filtered.shape)
+	#print(rgb_img.shape)
+	#print(rgb_img_filtered.shape)
+	#print(depth_img.shape)
+	#print(depth_img_filtered.shape)
 	#cv2.imshow('Color image', data["rgb_images"][0])
 	#cv2.waitKey(0)
 	#cv2.imshow('Depth image', data["depth_images"][0])
@@ -131,14 +131,14 @@ data = np.load('carrot_rsalign_data.npz')
 for k in data.files:
 	print(k)
 
-print(data["intrinsic_fx"])
-print(data["intrinsic_fy"])
-print(data["intrinsic_ppx"])
-print(data["intrinsic_ppy"])
-print(data["intrinsic_model"])
-print(data["intrinsic_coeffs"])
-print(data["intrinsic_width"])
-print(data["intrinsic_height"])
+#print(data["intrinsic_fx"])
+#print(data["intrinsic_fy"])
+#print(data["intrinsic_ppx"])
+#print(data["intrinsic_ppy"])
+#print(data["intrinsic_model"])
+#print(data["intrinsic_coeffs"])
+#print(data["intrinsic_width"])
+#print(data["intrinsic_height"])
 
 pcds = []
 pcd0 = findpcd(data["rgb_images"][0],data["depth_images"][0],data["ee_orientation"][0], data["ee_position"][0])
@@ -204,33 +204,44 @@ pcd_combined = o3d.geometry.PointCloud()
 for point_id in range(len(pcds)):
     pcd_combined += pcds[point_id]
 
-aligned_bounding_box = pcd3.get_axis_aligned_bounding_box()
+aligned_bounding_box = pcd_combined.get_axis_aligned_bounding_box()
 aligned_bounding_box.color = (1,0,0)
-oriented_bounding_box = pcd3.get_oriented_bounding_box()
+oriented_bounding_box = pcd_combined.get_oriented_bounding_box()
 oriented_bounding_box.color = (0,1,0)
+#oriented_bounding_box2 = o3d.geometry.OrientedBoundingBox.create_from_axis_aligned_bounding_box(aligned_bounding_box2)
+o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 y = points[2][1]-points[7][1]
 z = points[2][2]-points[7][2]
-r1 = R.from_euler('x', 90+np.arctan2(y,z)*180/np.pi, degrees=True)
+r1 = R.from_euler('x', np.arctan2(z,-y)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r1.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 x = points[0][0]-points[2][0]
 z = points[0][2]-points[2][2]
-r2 = R.from_euler('y', 90-np.arctan2(x,z)*180/np.pi, degrees=True)
+r2 = R.from_euler('y', np.arctan2(z,x)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r2.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 x = points[0][0]-points[3][0]
 y = points[0][1]-points[3][1]
-r3 = R.from_euler('z', -90-np.arctan2(y,x)*180/np.pi, degrees=True)
+r3 = R.from_euler('z', np.arctan2(-x,-y)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r3.as_matrix())
-r = r3*r2*r1
-pcd3.rotate(r.as_matrix(),oriented_bounding_box.get_center())
+
+points = np.asarray(oriented_bounding_box.get_box_points())
+y = points[2][1]-points[7][1]
+z = points[2][2]-points[7][2]
+r4 = R.from_euler('x', np.arctan2(z,-y)*180/np.pi, degrees=True)
+oriented_bounding_box.rotate(r4.as_matrix())
+
+r = r4*r3*r2*r1
+
+pcd_combined.rotate(r.as_matrix(),oriented_bounding_box.get_center())
+#pcd_combined.rotate(rfork.as_matrix()@r.as_matrix(),oriented_bounding_box.get_center())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 print(points)
 
-o3d.visualization.draw_geometries([pcd3, aligned_bounding_box, oriented_bounding_box])
+o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
 
