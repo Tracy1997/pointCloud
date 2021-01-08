@@ -16,7 +16,10 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	# convert to hsv. otsu threshold in s to remove plate
 	hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
 	h,s,v = cv2.split(hsv_img)
-	background = cv2.inRange(hsv_img, np.array([0,0,0]), np.array([200,200,255]))
+	carrot_depth = cv2.inRange(depth_img, 0, 400)
+	hsv_img = cv2.bitwise_and(hsv_img,hsv_img,mask = carrot_depth)
+
+	background = cv2.inRange(hsv_img, np.array([0,0,0]), np.array([150,150,255]))
 	not_background = cv2.bitwise_not(background)
 	fruit = cv2.bitwise_and(rgb_img,rgb_img,mask = not_background)
 
@@ -53,7 +56,7 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	res = cv2.bitwise_and(fruit_bin,fruit_bin,mask = mask_fruit)
 	rgb_img_filtered = cv2.bitwise_and(rgb_img,rgb_img,mask = mask_fruit)
 	depth_img_filtered = cv2.bitwise_and(depth_img,depth_img,mask = mask_fruit)
-	carrot_depth = cv2.inRange(depth_img_filtered, 0, 400)
+	carrot_depth = cv2.inRange(depth_img_filtered, 0, 370)
 	depth_img_filtered = cv2.bitwise_and(depth_img_filtered,depth_img_filtered,mask = carrot_depth)
 
 	#invert = cv2.bitwise_not(fruit_final) # OR
@@ -127,7 +130,7 @@ def findpcd(rgb_img,depth_img,orientation,position):
 	return pcd_filtered
 
 np.set_printoptions(threshold=np.inf)
-data = np.load('carrot_rsalign_data.npz')
+data = np.load('carrot_data_centered_and_aligned.npz')
 for k in data.files:
 	print(k)
 
@@ -150,6 +153,9 @@ pcd3 = findpcd(data["rgb_images"][3],data["depth_images"][3],data["ee_orientatio
 #pcd1.translate([[0],[-0.03],[0]])
 #pcd2.translate([[-0.018],[0],[-0.013]])
 #pcd3.translate([[0],[0.03],[0]])
+
+#mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size = 0.1, origin = [data["ee_position"][2][2]/20,data["ee_position"][2][0]/20,data["ee_position"][2][1]/20+0.29])
+
 r0 = R.from_quat(data["ee_orientation"][0])
 rot0 = r0.as_matrix()
 
@@ -162,36 +168,45 @@ rot2 = r2.as_matrix()
 r3 = R.from_quat(data["ee_orientation"][3])
 rot3 = r3.as_matrix()
 
-#rotation_center = pcd0.get_center()
+rf=np.array([[0, 0, 1],[1, 0, 0],[0, 1, 0]])
+rb=np.array([[0, 1, 0],[0, 0, 1],[1, 0, 0]])
+rotation_center = pcd0.get_center()
+rot1local=np.linalg.inv(rot0)@rot1
+rot2local=np.linalg.inv(rot0)@rot2
+rot3local=np.linalg.inv(rot0)@rot3
+print(rot3local)
+print(data["fork_position"])
+print(data["ee_position"])
+print(rotation_center)
 #rotation_center = [0.01123586, -0.01650917,  0.17909846]
-pcd1.rotate(np.linalg.inv(rot0)@rot1)
-pcd2.rotate(np.linalg.inv(rot0)@rot2)
-pcd3.rotate(np.linalg.inv(rot0)@rot3)
+pcd1.rotate(np.matmul(rf,np.matmul(rot1local, rb)),[data["ee_position"][1][2]/20,data["ee_position"][1][0]/20,data["ee_position"][1][1]/20+0.3])
+pcd2.rotate(np.matmul(rf,np.matmul(rot2local, rb)),[data["ee_position"][2][2]/20,data["ee_position"][2][0]/20,data["ee_position"][2][1]/20+0.29])
+pcd3.rotate(np.matmul(rf,np.matmul(rot3local, rb)),[data["ee_position"][3][2]/20,data["ee_position"][3][0]/20,data["ee_position"][3][1]/20+0.3])
 
 #pcd0.translate([[0.018],[0],[0.013]])
-pcd1.translate([[0],[-0.03],[0]])
-pcd2.translate([[-0.03],[0],[-0.03]])
-pcd3.translate([[-0.01],[0.03],[-0.02]])
+#pcd1.translate([[0],[-0.03],[0]])
+#pcd2.translate([[-0.03],[0],[-0.03]])
+#pcd3.translate([[-0.01],[0.03],[-0.02]])
 
-pcd0.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-pcd1.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-pcd2.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-pcd3.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+pcd0.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+pcd1.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+pcd2.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
+pcd3.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
 
 np_colors = np.array(pcd0.colors)
-np_colors[:,1] = 0.2
+#np_colors[:,1] = 0.2
 pcd0.colors = o3d.utility.Vector3dVector(np_colors)
 
 np_colors = np.array(pcd1.colors)
-np_colors[:,1] = 0.4
+#np_colors[:,1] = 0.4
 pcd1.colors = o3d.utility.Vector3dVector(np_colors)
 
 np_colors = np.array(pcd2.colors)
-np_colors[:,1] = 0.6
+#np_colors[:,1] = 0.6
 pcd2.colors = o3d.utility.Vector3dVector(np_colors)
 
 np_colors = np.array(pcd3.colors)
-np_colors[:,1] = 0.8
+#np_colors[:,1] = 0.8
 pcd3.colors = o3d.utility.Vector3dVector(np_colors)
 
 pcds.append(pcd0)
@@ -201,7 +216,7 @@ pcds.append(pcd3)
 #o3d.visualization.draw_geometries(pcds)
 
 pcd_combined = o3d.geometry.PointCloud()
-for point_id in range(len(pcds)):
+for point_id in [0,1,2,3]:
     pcd_combined += pcds[point_id]
 
 aligned_bounding_box = pcd_combined.get_axis_aligned_bounding_box()
@@ -214,25 +229,25 @@ o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_
 points = np.asarray(oriented_bounding_box.get_box_points())
 y = points[2][1]-points[7][1]
 z = points[2][2]-points[7][2]
-r1 = R.from_euler('x', np.arctan2(-z,y)*180/np.pi, degrees=True)
+r1 = R.from_euler('x', np.arctan2(z,-y)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r1.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 x = points[0][0]-points[2][0]
 z = points[0][2]-points[2][2]
-r2 = R.from_euler('y', np.arctan2(x,-z)*180/np.pi, degrees=True)
+r2 = R.from_euler('y', np.arctan2(z,x)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r2.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 x = points[0][0]-points[3][0]
 y = points[0][1]-points[3][1]
-r3 = R.from_euler('z', np.arctan2(-y,x)*180/np.pi, degrees=True)
+r3 = R.from_euler('z', np.arctan2(-x,-y)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r3.as_matrix())
 
 points = np.asarray(oriented_bounding_box.get_box_points())
 y = points[2][1]-points[7][1]
 z = points[2][2]-points[7][2]
-r4 = R.from_euler('x', np.arctan2(-z,y)*180/np.pi, degrees=True)
+r4 = R.from_euler('x', np.arctan2(z,-y)*180/np.pi, degrees=True)
 oriented_bounding_box.rotate(r4.as_matrix())
 
 r = r4*r3*r2*r1
