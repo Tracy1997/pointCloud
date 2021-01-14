@@ -31,11 +31,14 @@ def findpcd(rgb_img,depth_img,orientation,position, pinhole_camera_intrinsic):
 	carrot_depth = cv2.inRange(depth_img, 0, 2000)
 	hsv_img = cv2.bitwise_and(hsv_img,hsv_img,mask = carrot_depth)
 
-	fruit_mask = cv2.inRange(hsv_img, np.array([0 * 180/360,160,20]), np.array([55 * 180/360,255,255]))
+	#carrot
+	#fruit_mask = cv2.inRange(hsv_img, np.array([0 * 180/360,160,20]), np.array([55 * 180/360,255,255]))
+	#kumquat
+	fruit_mask = cv2.inRange(hsv_img, np.array([0 * 180/360,200,20]), np.array([40 * 180/360,255,255]))
 	fruit = cv2.bitwise_and(rgb_img,rgb_img,mask = fruit_mask)
 
-	# cv2.imshow('fruit',fruit)
-	# cv2.waitKey(0)
+	#cv2.imshow('fruit',fruit)
+	#cv2.waitKey(0)
 
 	fruit_bw = cv2.cvtColor(fruit, cv2.COLOR_BGR2GRAY)
 	fruit_bin = cv2.inRange(fruit_bw, 10, 255) #binary of fruit
@@ -201,7 +204,7 @@ for i in range(len(all_pcds)):
 	#cam_frame_i = fork_adjusted_frame.apply_a_to_b(fork_adjusted_frame_i, cam_frame)
 	# shift the base fork_frame by the transform between the curr_fork_frame and cam_frame. the resulting frame is as if we rotated the camera, rather than the end effector
 	cam_frame_i = fork_frame.apply_a_to_b(curr_fork_frame, cam_frame)
-	cam_frame_adjusted_i = cam_frame_i.apply_a_to_b(fork_frame, fork_adjusted_frame)
+	#cam_frame_adjusted_i = cam_frame_i.apply_a_to_b(fork_frame, fork_adjusted_frame)
 
 	# rotate the pointcloud from cam_frame (where they are now) to the fork_frame
 	# cami2fork, cam_i_in_fork = CoordinateFrame.transform_from_a_to_b(cam_frame_i, fork_frame)
@@ -210,17 +213,20 @@ for i in range(len(all_pcds)):
 	# all_pcds[i].rotate(cami2fork.as_matrix(), center=np.array([0,0,0]))
 	# all_pcds[i].translate(cam_i_in_fork)
 
-	pcd_from_a_to_b(all_pcds[i], cam_frame_adjusted_i, world_frame_3D)
+	pcd_from_a_to_b(all_pcds[i], cam_frame_i, world_frame_3D)
 	pcd_from_a_to_b(full_pcds[i], cam_frame_i, world_frame_3D)
 
 	cframe = draw_frame(cam_frame_i, size)
 	cframes.append(cframe)
 
-	cframe = draw_frame(cam_frame_adjusted_i, size)
-	cframes.append(cframe)
-
 	size += 0.01
 
+tempframe = []
+tempframe.append(draw_frame(fork_frame, size=0.2))
+tempframe.append(draw_frame(fork_adjusted_frame,size=0.3))
+#o3d.visualization.draw_geometries([pcd0full]+tempframe)
+
+#o3d.visualization.draw_geometries([pcd0, pcd1, pcd2, pcd3])
 
 def draw_registration_result(source, target, transformation):
 	source_temp = copy.deepcopy(source)
@@ -234,17 +240,21 @@ def draw_registration_result(source, target, transformation):
 		lookat=[1.6784, 2.0612, 1.4451],
 		up=[-0.3402, -0.9189, -0.1996])
 
-# base = all_pcds[0]
-# for i in range(1,len(all_pcds)):
-# 	pcd_next = all_pcds[i]
-# 	threshold = 1.0
-# 	trans_init = np.eye(4)
-# 	reg_p2p = o3d.pipelines.registration.registration_icp(
-# 		pcd_next, base, threshold, trans_init,
-# 		o3d.pipelines.registration.TransformationEstimationPointToPoint())
-# 	# draw_registration_result(pcd_next, base, trans_init)
-# 	pcd_next.transform(reg_p2p.transformation)
-# 	# draw_registration_result(pcd_next, base, reg_p2p.transformation)
+base = all_pcds[0]
+for i in range(1,len(all_pcds)):
+	pcd_next = all_pcds[i]
+	threshold = 1.0
+	trans_init = np.eye(4)
+	reg_p2p = o3d.pipelines.registration.registration_icp(
+		pcd_next, base, threshold, trans_init,
+		o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+		o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=200))
+	# draw_registration_result(pcd_next, base, trans_init)
+	pcd_next.transform(reg_p2p.transformation)
+	#pcd_next.rotate(reg_p2p.transformation[0:3,0:3],center=(0,0,0))
+	#pcd_next.translate(reg_p2p.transformation[:,-1][0:3])
+	pcd_next.rotate(np.linalg.inv(reg_p2p.transformation[0:3,0:3]))
+	# draw_registration_result(pcd_next, base, reg_p2p.transformation)
 
 # apply this rotation on a body converts
 
@@ -280,21 +290,21 @@ def draw_registration_result(source, target, transformation):
 # pcd2.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
 # pcd3.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
 
-np_colors = np.array(pcd0.colors)
-np_colors[:,1] = 0.2
-pcd0.colors = o3d.utility.Vector3dVector(np_colors)
+# np_colors = np.array(pcd0.colors)
+# np_colors[:,1] = 0.2
+# pcd0.colors = o3d.utility.Vector3dVector(np_colors)
 
-np_colors = np.array(pcd1.colors)
-np_colors[:,1] = 0.4
-pcd1.colors = o3d.utility.Vector3dVector(np_colors)
+# np_colors = np.array(pcd1.colors)
+# np_colors[:,1] = 0.4
+# pcd1.colors = o3d.utility.Vector3dVector(np_colors)
 
-np_colors = np.array(pcd2.colors)
-np_colors[:,1] = 0.6
-pcd2.colors = o3d.utility.Vector3dVector(np_colors)
+# np_colors = np.array(pcd2.colors)
+# np_colors[:,1] = 0.6
+# pcd2.colors = o3d.utility.Vector3dVector(np_colors)
 
-np_colors = np.array(pcd3.colors)
-np_colors[:,1] = 0.8
-pcd3.colors = o3d.utility.Vector3dVector(np_colors)
+# np_colors = np.array(pcd3.colors)
+# np_colors[:,1] = 0.8
+# pcd3.colors = o3d.utility.Vector3dVector(np_colors)
 
 pcds.append(pcd0)
 pcds.append(pcd1)
@@ -325,7 +335,7 @@ height_axis = bb2world[:, dim_order[2]].copy()  # major axis
 width_axis = bb2world[:, dim_order[1]].copy()  # "minor" axis
 
 #oriented_bounding_box2 = o3d.geometry.OrientedBoundingBox.create_from_axis_aligned_bounding_box(aligned_bounding_box2)
-#o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
+o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
 
 alpha = 0.5
 print(f"alpha={alpha:.3f}")
@@ -340,5 +350,5 @@ tetra_mesh.normalize_normals()
 #mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd_combined, alpha, tetra_mesh, pt_map)
 
 #mesh.compute_vertex_normals()
-o3d.visualization.draw_geometries([tetra_mesh], mesh_show_back_face=True)
+#o3d.visualization.draw_geometries([tetra_mesh], mesh_show_back_face=True)
 

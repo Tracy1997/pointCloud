@@ -141,7 +141,7 @@ for k in data.files:
 #print(data["intrinsic_model"])
 #print(data["intrinsic_coeffs"])
 #print(data["intrinsic_width"])
-#print(data["intrinsic_height"])
+#print(data["cam_orientation"])
 
 pcds = []
 pcd0 = findpcd(data["rgb_images"][0],data["depth_images"][0],data["ee_orientation"][0], data["ee_position"][0])
@@ -157,31 +157,31 @@ pcd3 = findpcd(data["rgb_images"][3],data["depth_images"][3],data["ee_orientatio
 #mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size = 0.1, origin = [data["ee_position"][2][2]/20,data["ee_position"][2][0]/20,data["ee_position"][2][1]/20+0.29])
 
 r0 = R.from_quat(data["ee_orientation"][0])
-rot0 = r0.as_matrix()
-
 r1 = R.from_quat(data["ee_orientation"][1])
-rot1 = r1.as_matrix()
-
 r2 = R.from_quat(data["ee_orientation"][2])
-rot2 = r2.as_matrix()
-
 r3 = R.from_quat(data["ee_orientation"][3])
+rcam = R.from_quat(data["cam_orientation"][0])
+
+rot0 = r0.as_matrix()
+rot1 = r1.as_matrix()
+rot2 = r2.as_matrix()
 rot3 = r3.as_matrix()
+rotcam = rcam.as_matrix()
 
 rf=np.array([[0, 0, 1],[1, 0, 0],[0, 1, 0]])
 rb=np.array([[0, 1, 0],[0, 0, 1],[1, 0, 0]])
 rotation_center = pcd0.get_center()
-rot1local=np.linalg.inv(rot0)@rot1
-rot2local=np.linalg.inv(rot0)@rot2
-rot3local=np.linalg.inv(rot0)@rot3
-print(rot3local)
+rot0local=np.linalg.inv(rot1)@rot0
+rot2local=np.linalg.inv(rot1)@rot2
+rot3local=np.linalg.inv(rot1)@rot3
 print(data["fork_position"])
 print(data["ee_position"])
 print(rotation_center)
 #rotation_center = [0.01123586, -0.01650917,  0.17909846]
-pcd1.rotate(np.matmul(rf,np.matmul(rot1local, rb)),[data["ee_position"][1][2]/20,data["ee_position"][1][0]/20,data["ee_position"][1][1]/20+0.3])
+
+pcd0.rotate(np.matmul(rf,np.matmul(rot0local, rb)),[data["ee_position"][0][2]/20,data["ee_position"][0][0]/20,data["ee_position"][0][1]/20+0.3])
 pcd2.rotate(np.matmul(rf,np.matmul(rot2local, rb)),[data["ee_position"][2][2]/20,data["ee_position"][2][0]/20,data["ee_position"][2][1]/20+0.29])
-pcd3.rotate(np.matmul(rf,np.matmul(rot3local, rb)),[data["ee_position"][3][2]/20,data["ee_position"][3][0]/20,data["ee_position"][3][1]/20+0.3])
+pcd3.rotate(np.matmul(rb,np.matmul(rot3local, rf)),[data["ee_position"][3][2]/20,data["ee_position"][3][0]/20,data["ee_position"][3][1]/20+0.3])
 
 #pcd0.translate([[0.018],[0],[0.013]])
 #pcd1.translate([[0],[-0.03],[0]])
@@ -194,19 +194,19 @@ pcd2.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
 pcd3.rotate([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
 
 np_colors = np.array(pcd0.colors)
-#np_colors[:,1] = 0.2
+np_colors[:,1] = 0.2
 pcd0.colors = o3d.utility.Vector3dVector(np_colors)
 
 np_colors = np.array(pcd1.colors)
-#np_colors[:,1] = 0.4
+np_colors[:,1] = 0.4
 pcd1.colors = o3d.utility.Vector3dVector(np_colors)
 
 np_colors = np.array(pcd2.colors)
-#np_colors[:,1] = 0.6
+np_colors[:,1] = 0.6
 pcd2.colors = o3d.utility.Vector3dVector(np_colors)
 
 np_colors = np.array(pcd3.colors)
-#np_colors[:,1] = 0.8
+np_colors[:,1] = 0.8
 pcd3.colors = o3d.utility.Vector3dVector(np_colors)
 
 pcds.append(pcd0)
@@ -258,5 +258,5 @@ pcd_combined.rotate(r.as_matrix(),oriented_bounding_box.get_center())
 points = np.asarray(oriented_bounding_box.get_box_points())
 print(points)
 
-o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
+#o3d.visualization.draw_geometries([pcd_combined, aligned_bounding_box, oriented_bounding_box])
 
